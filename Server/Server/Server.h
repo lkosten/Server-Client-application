@@ -29,6 +29,7 @@ class Server
 
   static DWORD __stdcall listeningSocket(const LPVOID lpvParam);
   static DWORD __stdcall clientHandlerReceiver(const LPVOID lpvParam);
+  static DWORD __stdcall clientHandlerSender(const LPVOID lpvParam);
 
 public:
   Server();

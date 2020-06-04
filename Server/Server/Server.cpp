@@ -78,25 +78,34 @@ DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
       continue;
     }
 
-    auto handlerParam = new std::pair<Server*, size_t>(&server, index);
-    HANDLE clientHandlerThread = CreateThread(NULL, 0, clientHandlerReceiver, handlerParam, 0, NULL);
-    if (clientHandlerThread == NULL)
+    auto handlerParam1 = new std::pair<Server*, size_t>(&server, index);
+    auto handlerParam2 = new std::pair<Server*, size_t>(&server, index);
+    HANDLE clientHandlerReceiverThread = CreateThread(NULL, 0, clientHandlerReceiver, handlerParam1, 0, NULL);
+    if (clientHandlerReceiver == NULL)
     {
-      std::cerr << "Failed creating clientHandler thread!" << std::endl;
+      std::cerr << "Failed creating clientHandlerReceiver thread!" << std::endl;
       exit(0);
     }
-    else CloseHandle(clientHandlerThread);
+    else CloseHandle(clientHandlerReceiverThread);
+    HANDLE clientHandlerSenderThread = CreateThread(NULL, 0, clientHandlerSender, handlerParam2, 0, NULL);
+    if (clientHandlerSenderThread == NULL)
+    {
+      std::cerr << "Failed creating clientHandlerSender thread!" << std::endl;
+      exit(0);
+    }
+    else CloseHandle(clientHandlerSenderThread);
+
   }
 
 
   return 0;
 }
 
-DWORD __stdcall Server::clientHandlerReceiver(LPVOID lpvParam)
+DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
 {
   Server &server = *((std::pair<Server*, size_t>*)lpvParam)->first;
   size_t index = ((std::pair<Server*, size_t>*)lpvParam)->second;
-
+  delete lpvParam;
 
   while (true)
   {
@@ -134,6 +143,48 @@ DWORD __stdcall Server::clientHandlerReceiver(LPVOID lpvParam)
   closesocket(server.handlerInfo[index].clientSocket);
   server.freeSocket.push(index);
   SetEvent(server.clientDisconnected);
+  return 0;
+}
+
+DWORD __stdcall Server::clientHandlerSender(const LPVOID lpvParam)
+{
+  Server &server = *((std::pair<Server*, size_t>*)lpvParam)->first;
+  size_t index = ((std::pair<Server*, size_t>*)lpvParam)->second;
+  delete lpvParam;
+
+  while (true)
+  {
+    if (server.handlerInfo[index].responseQueue.empty()) WaitForSingleObject(server.handlerInfo[index].responsePushed, INFINITE);
+
+    auto response = server.handlerInfo[index].responseQueue.front();
+    server.handlerInfo[index].responseQueue.pop();
+
+    size_t len = response.size();
+    int result;
+    result = send(server.handlerInfo[index].clientSocket, (char*)&len, sizeof(size_t), 0);
+    if (result == 0)
+    {
+      std::cout << "Client disconnected. #2" << std::endl;
+      break;
+    }
+    else if (result < 0)
+    {
+      std::cerr << "send() failed with error: " << WSAGetLastError() << std::endl;
+      break;
+    }
+    result = send(server.handlerInfo[index].clientSocket, (char*)response.c_str(), sizeof(wchar_t) * len, 0);
+    if (result == 0)
+    {
+      std::cout << "Client disconnected. #2" << std::endl;
+      break;
+    }
+    else if (result < 0)
+    {
+      std::cerr << "send() failed with error: " << WSAGetLastError() << std::endl;
+      break;
+    }
+  }
+
   return 0;
 }
 
