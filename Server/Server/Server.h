@@ -9,6 +9,7 @@ class Server
     std::queue<std::wstring> responseQueue;
     HANDLE responsePushed;
     size_t index;
+    SOCKET clientSocket;
   };
   const std::string dataFileName = "commandResponse.xml";
   const size_t maxConnections = 10;
@@ -16,7 +17,9 @@ class Server
   
   std::queue<std::pair<std::wstring, int>> commandQueue;
   std::vector<HandlerInfo> handlerInfo;
+  std::queue<size_t> freeSocket;
   HANDLE commandPushed;
+  HANDLE clientDisconnected;
 
   SOCKET listenSocket;
 
@@ -24,7 +27,9 @@ class Server
 
   void tuneNetwork();
 
-  static DWORD __stdcall listeningSocket(const LPVOID lpvParam);
+  static DWORD __stdcall listeningSocket(LPVOID lpvParam);
+  static DWORD __stdcall clientHandler(LPVOID lpvParam);
+
 public:
   Server();
   ~Server();

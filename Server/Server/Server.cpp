@@ -58,7 +58,46 @@ void Server::tuneNetwork()
   }
 }
 
-DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
+DWORD __stdcall Server::listeningSocket(LPVOID lpvParam)
+{
+  std::tuple<std::queue<size_t>*, HANDLE, SOCKET, std::vector<HandlerInfo>*> *param = 
+    (std::tuple<std::queue<size_t>*, HANDLE, SOCKET, std::vector<HandlerInfo>*>*)lpvParam;
+  std::queue<size_t> &freeSocket = *std::get<0>(*param);
+  HANDLE clientDisconnected = std::get<1>(*param);
+  SOCKET listenSocket = std::get<2>(*param);
+  std::vector<HandlerInfo> &handlerInfo = *std::get<3>(*param);
+  delete param;
+
+  while (true)
+  {
+    if (freeSocket.empty()) WaitForSingleObject(clientDisconnected, INFINITE);
+    
+    int index = freeSocket.front();
+    freeSocket.pop();
+
+    sockaddr_in client;
+    int clientSize = sizeof(client);
+    handlerInfo[index].clientSocket = accept(listenSocket, (sockaddr*)&client, &clientSize);
+    if (handlerInfo[index].clientSocket == INVALID_SOCKET)
+    {
+      std::cerr << "Client connection failed with error: " << WSAGetLastError() << std::endl;
+      continue;
+    }
+
+    HANDLE clientHandlerThread = CreateThread(NULL, 0, clientHandler, param, 0, NULL);
+    if (clientHandlerThread == NULL)
+    {
+      std::cerr << "Failed creating clientHandler thread!" << std::endl;
+      exit(0);
+    }
+    else CloseHandle(clientHandlerThread);
+  }
+
+
+  return 0;
+}
+
+DWORD __stdcall Server::clientHandler(LPVOID lpvParam)
 {
   return 0;
 }
@@ -68,6 +107,12 @@ Server::Server() : commandQueue(), handlerInfo(maxConnections)
 {
   commandPushed = CreateEvent(NULL, false, false, NULL);
   if (commandPushed == NULL)
+  {
+    std::cerr << "Failed creating event!" << std::endl;
+    exit(0);
+  }
+  clientDisconnected = CreateEvent(NULL, false, false, NULL);
+  if (clientDisconnected == NULL)
   {
     std::cerr << "Failed creating event!" << std::endl;
     exit(0);
@@ -82,6 +127,8 @@ Server::Server() : commandQueue(), handlerInfo(maxConnections)
       std::cerr << "Failed creating commandPushed event!" << std::endl;
       exit(0);
     }
+
+    freeSocket.push(i);
   }
 
   tuneNetwork();
@@ -90,6 +137,7 @@ Server::Server() : commandQueue(), handlerInfo(maxConnections)
 Server::~Server()
 {
   CloseHandle(commandPushed);
+  CloseHandle(clientDisconnected);
   for (auto &element : handlerInfo) CloseHandle(element.responsePushed);
 
   closesocket(listenSocket);
@@ -103,7 +151,9 @@ void Server::runServer()
   readData(commandToResponse);
   
 
-  HANDLE listeningSocketThread = CreateThread(NULL, 0, listeningSocket, NULL, 0, NULL);
+  auto param = new std::tuple<std::queue<size_t>*, HANDLE, SOCKET, std::vector<HandlerInfo>*>
+    (&freeSocket, clientDisconnected, listenSocket, &handlerInfo);
+  HANDLE listeningSocketThread = CreateThread(NULL, 0, listeningSocket, param, 0, NULL);
   if (listeningSocketThread == NULL)
   {
     std::cerr << "Failed creating listeningSocket thread!" << std::endl;
