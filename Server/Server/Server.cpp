@@ -78,8 +78,8 @@ DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
       continue;
     }
 
-
-    HANDLE clientHandlerThread = CreateThread(NULL, 0, clientHandler, &server, 0, NULL);
+    auto handlerParam = new std::pair<Server*, size_t>(&server, index);
+    HANDLE clientHandlerThread = CreateThread(NULL, 0, clientHandlerReceiver, handlerParam, 0, NULL);
     if (clientHandlerThread == NULL)
     {
       std::cerr << "Failed creating clientHandler thread!" << std::endl;
@@ -92,16 +92,48 @@ DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
   return 0;
 }
 
-DWORD __stdcall Server::clientHandler(LPVOID lpvParam)
+DWORD __stdcall Server::clientHandlerReceiver(LPVOID lpvParam)
 {
-  Server &server = *(Server*)lpvParam;
+  Server &server = *((std::pair<Server*, size_t>*)lpvParam)->first;
+  size_t index = ((std::pair<Server*, size_t>*)lpvParam)->second;
 
 
   while (true)
   {
+    size_t commandLen;
+    int result;
+    result = recv(server.handlerInfo[index].clientSocket, (char*)&commandLen, sizeof(commandLen), 0);
+    if (result == 0)
+    {
+      std::cout << "Client disonnected." << std::endl;
+      break;
+    }
+    else if (result < 0)
+    {
+      std::cerr << "recv() failed with error: " << WSAGetLastError() << std::endl;
+      break;
+    }
 
+    wchar_t *command = new wchar_t[commandLen];
+    result = recv(server.handlerInfo[index].clientSocket, (char*)command, sizeof(commandLen) * sizeof(wchar_t), 0);
+    if (result == 0)
+    {
+      std::cout << "Client disonnected." << std::endl;
+      break;
+    }
+    else if (result < 0)
+    {
+      std::cerr << "recv() failed with error: " << WSAGetLastError() << std::endl;
+      break;
+    }
+
+    server.commandQueue.emplace(command, index);
+    SetEvent(server.commandPushed);
   }
 
+  closesocket(server.handlerInfo[index].clientSocket);
+  server.freeSocket.push(index);
+  SetEvent(server.clientDisconnected);
   return 0;
 }
 
