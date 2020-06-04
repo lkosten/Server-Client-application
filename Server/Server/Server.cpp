@@ -6,7 +6,7 @@ void Server::readData(std::unordered_map<std::wstring, std::wstring> &commandToR
   inputFile.open(dataFileName);
   if (!inputFile)
   {
-    std::cerr << "Cann't open file with commands!" << std::endl;
+    std::cerr << "Can't open file with commands!" << std::endl;
     exit(0);
   }
 
@@ -19,6 +19,50 @@ void Server::readData(std::unordered_map<std::wstring, std::wstring> &commandToR
 
   inputFile.close();
 }
+
+void Server::tuneNetwork()
+{
+  WSAData wsaData;
+  if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+  {
+    std::cerr << "Can't initialize winsock!" << std::endl;
+    exit(0);
+  }
+
+  listenSocket = socket(AF_INET, SOCK_STREAM, 0);
+  if (listenSocket == INVALID_SOCKET)
+  {
+    std::cerr << "Initializing listening socket failed with error: " << WSAGetLastError() << std::endl;
+    WSACleanup();
+    exit(0);
+  }
+
+  sockaddr_in hint;
+  hint.sin_family = AF_INET;
+  hint.sin_port = htons(port);
+  hint.sin_addr.S_un.S_addr = INADDR_ANY;
+
+  if (bind(listenSocket, (sockaddr*)&hint, sizeof(hint)) == SOCKET_ERROR)
+  {
+    std::cerr << "Binid" << std::endl;
+    closesocket(listenSocket);
+    WSACleanup();
+    exit(0);
+  }
+  if (listen(listenSocket, maxConnections) == SOCKET_ERROR)
+  {
+    std::cerr << "Binding listening socket failed with error: " << WSAGetLastError() << std::endl;
+    closesocket(listenSocket);
+    WSACleanup();
+    exit(0);
+  }
+}
+
+DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
+{
+  return 0;
+}
+
 
 Server::Server() : commandQueue(), handlerInfo(maxConnections)
 {
@@ -39,12 +83,17 @@ Server::Server() : commandQueue(), handlerInfo(maxConnections)
       exit(0);
     }
   }
+
+  tuneNetwork();
 }
 
 Server::~Server()
 {
   CloseHandle(commandPushed);
   for (auto &element : handlerInfo) CloseHandle(element.responsePushed);
+
+  closesocket(listenSocket);
+  WSACleanup();
 }
 
 
@@ -54,7 +103,7 @@ void Server::runServer()
   readData(commandToResponse);
   
 
-  HANDLE listeningSocketThread = CreateThread(NULL, 0, this->listeningSocket, NULL, 0, NULL);
+  HANDLE listeningSocketThread = CreateThread(NULL, 0, listeningSocket, NULL, 0, NULL);
   if (listeningSocketThread == NULL)
   {
     std::cerr << "Failed creating listeningSocket thread!" << std::endl;
@@ -74,7 +123,3 @@ void Server::runServer()
   }
 }
 
-void __stdcall Server::listeningSocket()
-{
-
-}
