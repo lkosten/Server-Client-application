@@ -27,8 +27,8 @@ class Server
 
   void tuneNetwork();
 
-  static DWORD __stdcall listeningSocket(LPVOID lpvParam);
-  static DWORD __stdcall clientHandler(LPVOID lpvParam);
+  static DWORD __stdcall listeningSocket(const LPVOID lpvParam);
+  static DWORD __stdcall clientHandler(const LPVOID lpvParam);
 
 public:
   Server();
