@@ -72,7 +72,11 @@ DWORD __stdcall Client::responsReceiver(const LPVOID lpvParam)
 
   for (size_t iteration = 0; iteration < requestNumber; ++iteration)
   {
-    if (client.commandQueue.empty()) WaitForSingleObject(client.commandSended, INFINITE);
+    if (client.commandQueue.empty())
+    {
+      ResetEvent(client.commandSended);
+      WaitForSingleObject(client.commandSended, INFINITE);
+    }
 
     size_t responsLen;
     int result;

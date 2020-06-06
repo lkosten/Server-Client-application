@@ -79,7 +79,11 @@ DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
 
   while (true)
   {
-    if (server.freeSocket.empty()) WaitForSingleObject(server.clientDisconnected, INFINITE);
+    if (server.freeSocket.empty())
+    {
+      ResetEvent(server.clientDisconnected);
+      WaitForSingleObject(server.clientDisconnected, INFINITE);
+    }
     
     int index = server.freeSocket.front();
     server.freeSocket.pop();
@@ -188,7 +192,11 @@ DWORD __stdcall Server::clientHandlerSender(const LPVOID lpvParam)
 
   while (true)
   {
-    if (server.handlerInfo[index].responseQueue.empty()) WaitForSingleObject(server.handlerInfo[index].responsePushed, INFINITE);
+    if (server.handlerInfo[index].responseQueue.empty())
+    {
+      ResetEvent(server.handlerInfo[index].responsePushed);
+      WaitForSingleObject(server.handlerInfo[index].responsePushed, INFINITE);
+    }
     if (server.handlerInfo[index].responseQueue.empty()) break;
 
     auto response = server.handlerInfo[index].responseQueue.front();
@@ -304,7 +312,11 @@ void Server::runServer()
 
   while (true)
   {
-    if (commandQueue.empty()) WaitForSingleObject(commandPushed, INFINITE);
+    if (commandQueue.empty())
+    {
+      ResetEvent(commandPushed);
+      WaitForSingleObject(commandPushed, INFINITE);
+    }
 
     auto curCommand = commandQueue.front();
     commandQueue.pop();
