@@ -52,13 +52,58 @@ void Client::tuneNetwork()
   }
 }
 
-Client::Client(size_t requestNumber) : requestNumber(requestNumber)
+Client::Client() : commands(), commandQueue()
 {
+  readData();
+  tuneNetwork();
 
+  commandSended = CreateEvent(NULL, false, false, NULL);
+  if (commandSended == NULL)
+  {
+    std::cerr << "Failed creating event!" << std::endl;
+    exit(0);
+  }
 }
 
 Client::~Client()
 {
+  CloseHandle(commandSended);
   closesocket(clientSocket);
   WSACleanup();
+}
+
+void Client::runClient(size_t requestNumber)
+{
+  for (size_t iteration = 0; iteration < requestNumber; ++iteration)
+  {
+    auto command = commands[iteration % commands.size()];
+
+    int result;
+    result = send(clientSocket, (char*)command.size(), sizeof(size_t), 0);
+    if (result == 0)
+    {
+      std::cout << "Server disconnected." << std::endl;
+      break;
+    }
+    else if (result < 0)
+    {
+      std::cerr << "send() failed with error: " << WSAGetLastError() << std::endl;
+      break;
+    }
+    
+    result = send(clientSocket, (char*)command.c_str(), sizeof(wchar_t) * command.size(), 0);
+    if (result == 0)
+    {
+      std::cout << "Server disconnected." << std::endl;
+      break;
+    }
+    else if (result < 0)
+    {
+      std::cerr << "send() failed with error: " << WSAGetLastError() << std::endl;
+      break;
+    }
+
+    commandQueue.push(command);
+    SetEvent(commandSended);
+  }
 }
