@@ -77,7 +77,7 @@ DWORD __stdcall Client::responsReceiver(const LPVOID lpvParam)
     }
 
     wchar_t *command = new wchar_t[responsLen];
-    result = recv(client.clientSocket, (char*)command, sizeof(responsLen) * sizeof(wchar_t), 0);
+    result = recv(client.clientSocket, (char*)command, responsLen * sizeof(wchar_t), 0);
     if (result == 0)
     {
       std::cout << "Client disonnected." << std::endl;
@@ -89,7 +89,8 @@ DWORD __stdcall Client::responsReceiver(const LPVOID lpvParam)
       break;
     }
 
-    std::cout << command << std::endl;
+    std::wcout << command << std::endl;
+    delete[]command;
   }
 
   return 0;
@@ -125,7 +126,7 @@ void Client::runClient(size_t requestNumber)
     auto command = commands[iteration % commands.size()];
 
     int result;
-    size_t len = command.size();
+    size_t len = command.size() + 1;
     result = send(clientSocket, (char*)&len, sizeof(len), 0);
     if (result == 0)
     {
@@ -138,7 +139,7 @@ void Client::runClient(size_t requestNumber)
       break;
     }
     
-    result = send(clientSocket, (char*)command.c_str(), sizeof(wchar_t) * command.size(), 0);
+    result = send(clientSocket, (char*)command.c_str(), sizeof(wchar_t) * len, 0);
     if (result == 0)
     {
       std::cout << "Server disconnected." << std::endl;
@@ -152,5 +153,7 @@ void Client::runClient(size_t requestNumber)
 
     commandQueue.push(command);
     SetEvent(commandSended);
+
+    Sleep(sleepTime);
   }
 }

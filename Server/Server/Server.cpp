@@ -124,7 +124,7 @@ DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
     }
 
     wchar_t *command = new wchar_t[commandLen];
-    result = recv(server.handlerInfo[index].clientSocket, (char*)command, sizeof(commandLen) * sizeof(wchar_t), 0);
+    result = recv(server.handlerInfo[index].clientSocket, (char*)command, commandLen * sizeof(wchar_t), 0);
     if (result == 0)
     {
       std::cout << "Client disonnected." << std::endl;
@@ -138,7 +138,7 @@ DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
 
     server.commandQueue.emplace(command, index);
     SetEvent(server.commandPushed);
-    delete command;
+    delete[]command;
   }
 
   closesocket(server.handlerInfo[index].clientSocket);
@@ -160,7 +160,7 @@ DWORD __stdcall Server::clientHandlerSender(const LPVOID lpvParam)
     auto response = server.handlerInfo[index].responseQueue.front();
     server.handlerInfo[index].responseQueue.pop();
 
-    size_t len = response.size();
+    size_t len = response.size() + 1;
     int result;
     result = send(server.handlerInfo[index].clientSocket, (char*)&len, sizeof(size_t), 0);
     if (result == 0)

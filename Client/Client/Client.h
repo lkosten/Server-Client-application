@@ -6,7 +6,7 @@ class Client
   const std::string commandsFileName = "commands.xml";
   const std::string serverIpAddress = "127.0.0.1";
   const uint32_t port = 8731;
-
+  const DWORD sleepTime = 1000;
   std::vector<std::wstring> commands;
   std::queue<std::wstring> commandQueue;
 
