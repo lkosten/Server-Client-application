@@ -20,6 +20,7 @@ class Server
   std::queue<size_t> freeSocket;
   HANDLE commandPushed;
   HANDLE clientDisconnected;
+  CRITICAL_SECTION outputCriticalSection;
 
   SOCKET listenSocket;
 

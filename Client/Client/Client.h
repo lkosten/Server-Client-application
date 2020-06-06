@@ -11,6 +11,8 @@ class Client
   std::queue<std::wstring> commandQueue;
 
   HANDLE commandSended;
+  HANDLE receiverTerminated;
+  CRITICAL_SECTION outputCriticalSection;
 
   SOCKET clientSocket;
 

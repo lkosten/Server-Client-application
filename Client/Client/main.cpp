@@ -3,8 +3,8 @@
 int main(int argc, char **argv)
 {
   Client client;
-  client.runClient(10);
+  client.runClient(3);
   
-
+  system("pause");
   return 0;
 }

@@ -6,7 +6,10 @@ void Server::readData(std::unordered_map<std::wstring, std::wstring> &commandToR
   inputFile.open(dataFileName);
   if (!inputFile)
   {
+    EnterCriticalSection(&outputCriticalSection);
     std::cerr << "Can't open file with commands!" << std::endl;
+    LeaveCriticalSection(&outputCriticalSection);
+    system("pause");
     exit(0);
   }
 
@@ -25,15 +28,21 @@ void Server::tuneNetwork()
   WSAData wsaData;
   if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
   {
+    EnterCriticalSection(&outputCriticalSection);
     std::cerr << "Can't initialize winsock!" << std::endl;
+    LeaveCriticalSection(&outputCriticalSection);
+    system("pause");
     exit(0);
   }
 
   listenSocket = socket(AF_INET, SOCK_STREAM, 0);
   if (listenSocket == INVALID_SOCKET)
   {
+    EnterCriticalSection(&outputCriticalSection);
     std::cerr << "Initializing listening socket failed with error: " << WSAGetLastError() << std::endl;
+    LeaveCriticalSection(&outputCriticalSection);
     WSACleanup();
+    system("pause");
     exit(0);
   }
 
@@ -44,16 +53,22 @@ void Server::tuneNetwork()
 
   if (bind(listenSocket, (sockaddr*)&hint, sizeof(hint)) == SOCKET_ERROR)
   {
-    std::cerr << "Binid" << std::endl;
+    EnterCriticalSection(&outputCriticalSection);
+    std::cerr << "Binding socket failed with error: " << WSAGetLastError() << std::endl;
+    LeaveCriticalSection(&outputCriticalSection);
     closesocket(listenSocket);
     WSACleanup();
+    system("pause");
     exit(0);
   }
   if (listen(listenSocket, maxConnections) == SOCKET_ERROR)
   {
-    std::cerr << "Binding listening socket failed with error: " << WSAGetLastError() << std::endl;
+    EnterCriticalSection(&outputCriticalSection);
+    std::cerr << "Listening socket failed with error: " << WSAGetLastError() << std::endl;
+    LeaveCriticalSection(&outputCriticalSection);
     closesocket(listenSocket);
     WSACleanup();
+    system("pause");
     exit(0);
   }
 }
@@ -74,7 +89,10 @@ DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
     server.handlerInfo[index].clientSocket = accept(server.listenSocket, (sockaddr*)&client, &clientSize);
     if (server.handlerInfo[index].clientSocket == INVALID_SOCKET)
     {
+      EnterCriticalSection(&server.outputCriticalSection);
       std::cerr << "Client connection failed with error: " << WSAGetLastError() << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
+      system("pause");
       continue;
     }
 
@@ -83,14 +101,20 @@ DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
     HANDLE clientHandlerReceiverThread = CreateThread(NULL, 0, clientHandlerReceiver, handlerParam1, 0, NULL);
     if (clientHandlerReceiver == NULL)
     {
+      EnterCriticalSection(&server.outputCriticalSection);
       std::cerr << "Failed creating clientHandlerReceiver thread!" << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
+      system("pause");
       exit(0);
     }
     else CloseHandle(clientHandlerReceiverThread);
     HANDLE clientHandlerSenderThread = CreateThread(NULL, 0, clientHandlerSender, handlerParam2, 0, NULL);
     if (clientHandlerSenderThread == NULL)
     {
+      EnterCriticalSection(&server.outputCriticalSection);
       std::cerr << "Failed creating clientHandlerSender thread!" << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
+      system("pause");
       exit(0);
     }
     else CloseHandle(clientHandlerSenderThread);
@@ -114,12 +138,16 @@ DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
     result = recv(server.handlerInfo[index].clientSocket, (char*)&commandLen, sizeof(commandLen), 0);
     if (result == 0)
     {
+      EnterCriticalSection(&server.outputCriticalSection);
       std::cout << "Client disonnected." << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
     else if (result < 0)
     {
+      EnterCriticalSection(&server.outputCriticalSection);
       std::cerr << "recv() failed with error: " << WSAGetLastError() << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
 
@@ -127,12 +155,16 @@ DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
     result = recv(server.handlerInfo[index].clientSocket, (char*)command, commandLen * sizeof(wchar_t), 0);
     if (result == 0)
     {
+      EnterCriticalSection(&server.outputCriticalSection);
       std::cout << "Client disonnected." << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
     else if (result < 0)
     {
+      EnterCriticalSection(&server.outputCriticalSection);
       std::cerr << "recv() failed with error: " << WSAGetLastError() << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
 
@@ -144,6 +176,7 @@ DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
   closesocket(server.handlerInfo[index].clientSocket);
   server.freeSocket.push(index);
   SetEvent(server.clientDisconnected);
+  SetEvent(server.handlerInfo[index].responsePushed);
   return 0;
 }
 
@@ -156,6 +189,7 @@ DWORD __stdcall Server::clientHandlerSender(const LPVOID lpvParam)
   while (true)
   {
     if (server.handlerInfo[index].responseQueue.empty()) WaitForSingleObject(server.handlerInfo[index].responsePushed, INFINITE);
+    if (server.handlerInfo[index].responseQueue.empty()) break;
 
     auto response = server.handlerInfo[index].responseQueue.front();
     server.handlerInfo[index].responseQueue.pop();
@@ -165,23 +199,31 @@ DWORD __stdcall Server::clientHandlerSender(const LPVOID lpvParam)
     result = send(server.handlerInfo[index].clientSocket, (char*)&len, sizeof(size_t), 0);
     if (result == 0)
     {
-      std::cout << "Client disconnected. #2" << std::endl;
+      EnterCriticalSection(&server.outputCriticalSection);
+      std::cout << "Client disconnected." << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
     else if (result < 0)
     {
+      EnterCriticalSection(&server.outputCriticalSection);
       std::cerr << "send() failed with error: " << WSAGetLastError() << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
     result = send(server.handlerInfo[index].clientSocket, (char*)response.c_str(), sizeof(wchar_t) * len, 0);
     if (result == 0)
     {
-      std::cout << "Client disconnected. #2" << std::endl;
+      EnterCriticalSection(&server.outputCriticalSection);
+      std::cout << "Client disconnected." << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
     else if (result < 0)
     {
+      EnterCriticalSection(&server.outputCriticalSection);
       std::cerr << "send() failed with error: " << WSAGetLastError() << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
   }
@@ -192,16 +234,23 @@ DWORD __stdcall Server::clientHandlerSender(const LPVOID lpvParam)
 
 Server::Server() : commandQueue(), handlerInfo(maxConnections)
 {
+  InitializeCriticalSection(&outputCriticalSection);
   commandPushed = CreateEvent(NULL, false, false, NULL);
   if (commandPushed == NULL)
   {
+    EnterCriticalSection(&outputCriticalSection);
     std::cerr << "Failed creating event!" << std::endl;
+    LeaveCriticalSection(&outputCriticalSection);
+    system("pause");
     exit(0);
   }
   clientDisconnected = CreateEvent(NULL, false, false, NULL);
   if (clientDisconnected == NULL)
   {
+    EnterCriticalSection(&outputCriticalSection);
     std::cerr << "Failed creating event!" << std::endl;
+    LeaveCriticalSection(&outputCriticalSection);
+    system("pause");
     exit(0);
   }
 
@@ -211,7 +260,10 @@ Server::Server() : commandQueue(), handlerInfo(maxConnections)
     handlerInfo[i].responsePushed = CreateEvent(NULL, false, false, NULL);
     if (handlerInfo[i].responsePushed == NULL)
     {
+      EnterCriticalSection(&outputCriticalSection);
       std::cerr << "Failed creating commandPushed event!" << std::endl;
+      LeaveCriticalSection(&outputCriticalSection);
+      system("pause");
       exit(0);
     }
 
@@ -225,6 +277,7 @@ Server::~Server()
 {
   CloseHandle(commandPushed);
   CloseHandle(clientDisconnected);
+  DeleteCriticalSection(&outputCriticalSection);
   for (auto &element : handlerInfo) CloseHandle(element.responsePushed);
 
   closesocket(listenSocket);
@@ -241,7 +294,10 @@ void Server::runServer()
   HANDLE listeningSocketThread = CreateThread(NULL, 0, listeningSocket, this, 0, NULL);
   if (listeningSocketThread == NULL)
   {
+    EnterCriticalSection(&outputCriticalSection);
     std::cerr << "Failed creating listeningSocket thread!" << std::endl;
+    LeaveCriticalSection(&outputCriticalSection);
+    system("pause");
     exit(0);
   }
   else CloseHandle(listeningSocketThread);
