@@ -2,10 +2,7 @@
 
 int main(int argc, char **argv)
 {
-  Client client;
-  client.runClient(3);
-  client.runClient(3);
-  client.runClient(3);
+  Client client(INFINITE);
   
   system("pause");
   return 0;

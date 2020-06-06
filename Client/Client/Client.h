@@ -20,13 +20,13 @@ class Client
   void tuneNetwork();
 
   static DWORD __stdcall responsReceiver(const LPVOID lpvParam);
+  void runClient(size_t requestNumber);
 
 public:
 
-  Client();
+  Client(size_t requestNumber);
   ~Client();
 
-  void runClient(size_t requestNumber);
 
 };
 

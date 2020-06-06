@@ -10,5 +10,6 @@
 #include <queue>
 #include <vector>
 #include <ws2tcpip.h>
+#include <ctime>
 
 #pragma comment (lib, "Ws2_32.lib")
