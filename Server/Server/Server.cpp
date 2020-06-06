@@ -138,6 +138,7 @@ DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
 
     server.commandQueue.emplace(command, index);
     SetEvent(server.commandPushed);
+    delete command;
   }
 
   closesocket(server.handlerInfo[index].clientSocket);

@@ -17,6 +17,8 @@ class Client
   void readData();
   void tuneNetwork();
 
+  static DWORD __stdcall responsReceiver(const LPVOID lpvParam);
+
 public:
 
   Client();
