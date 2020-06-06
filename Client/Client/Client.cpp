@@ -41,7 +41,7 @@ void Client::tuneNetwork()
   sockaddr_in hint;
   hint.sin_family = AF_INET;
   hint.sin_port = htons(port);
-  inet_pton(AF_INET, serverIpAddress.c_str(), &hint);
+  inet_pton(AF_INET, serverIpAddress.c_str(), &hint.sin_addr);
 
   if (connect(clientSocket, (sockaddr*)&hint, sizeof(hint)) == SOCKET_ERROR)
   {
@@ -79,7 +79,8 @@ void Client::runClient(size_t requestNumber)
     auto command = commands[iteration % commands.size()];
 
     int result;
-    result = send(clientSocket, (char*)command.size(), sizeof(size_t), 0);
+    size_t len = command.size();
+    result = send(clientSocket, (char*)&len, sizeof(len), 0);
     if (result == 0)
     {
       std::cout << "Server disconnected." << std::endl;
