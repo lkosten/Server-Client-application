@@ -18,7 +18,8 @@ void Client::readData()
   {
     std::wstring command;
     inputFile >> command;
-    commands.push_back(command);
+    command.pop_back();
+    commands.push_back(command.substr(1));
   }
 
   inputFile.close();

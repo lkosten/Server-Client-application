@@ -17,7 +17,9 @@ void Server::readData(std::unordered_map<std::wstring, std::wstring> &commandToR
   {
     std::wstring command, response;
     inputFile >> command >> response;
-    commandToResponse[command] = response;
+    command.pop_back();
+    response.pop_back();
+    commandToResponse[command.substr(1)] = response.substr(1);
   }
 
   inputFile.close();
