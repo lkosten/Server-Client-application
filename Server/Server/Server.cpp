@@ -100,6 +100,22 @@ DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
       continue;
     }
 
+    ZeroMemory(server.handlerInfo[index].host, NI_MAXHOST);
+    ZeroMemory(server.handlerInfo[index].service, NI_MAXSERV);
+    if (getnameinfo((sockaddr*)&client, sizeof(client),
+      server.handlerInfo[index].host, NI_MAXHOST, server.handlerInfo[index].service, NI_MAXSERV, 0) == 0)
+    {
+      EnterCriticalSection(&server.outputCriticalSection);
+      std::cout << server.handlerInfo[index].host << " connected on port " << server.handlerInfo[index].service << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
+    }
+    else
+    {
+      EnterCriticalSection(&server.outputCriticalSection);
+      std::cerr << "Can't get information from client: " << WSAGetLastError() << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
+    }
+
     auto handlerParam1 = new std::pair<Server*, size_t>(&server, index);
     auto handlerParam2 = new std::pair<Server*, size_t>(&server, index);
     HANDLE clientHandlerReceiverThread = CreateThread(NULL, 0, clientHandlerReceiver, handlerParam1, 0, NULL);
@@ -142,9 +158,6 @@ DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
     result = recv(server.handlerInfo[index].clientSocket, (char*)&commandLen, sizeof(commandLen), 0);
     if (result == 0)
     {
-      EnterCriticalSection(&server.outputCriticalSection);
-      std::cout << "Client disonnected." << std::endl;
-      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
     else if (result < 0)
@@ -159,9 +172,6 @@ DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
     result = recv(server.handlerInfo[index].clientSocket, (char*)command, commandLen * sizeof(wchar_t), 0);
     if (result == 0)
     {
-      EnterCriticalSection(&server.outputCriticalSection);
-      std::cout << "Client disonnected." << std::endl;
-      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
     else if (result < 0)
@@ -175,7 +185,24 @@ DWORD __stdcall Server::clientHandlerReceiver(const LPVOID lpvParam)
     server.commandQueue.emplace(command, index);
     SetEvent(server.commandPushed);
     delete[]command;
+
+    EnterCriticalSection(&server.outputCriticalSection);
+    auto temp = std::time(nullptr);
+    char *timestamp = new char[200];
+    tm locTime;
+    localtime_s(&locTime, &temp);
+    asctime_s(timestamp, 200, &locTime);
+    std::wcout << timestamp;
+    std::cout << "Command received from " <<
+      server.handlerInfo[index].host << " on port " << server.handlerInfo[index].service << std::endl;
+    LeaveCriticalSection(&server.outputCriticalSection);
+    delete[]timestamp;
+
   }
+
+  EnterCriticalSection(&server.outputCriticalSection);
+  std::cout << "Client " << server.handlerInfo[index].host << " on port " << server.handlerInfo[index].service << " disonnected." << std::endl;
+  LeaveCriticalSection(&server.outputCriticalSection);
 
   closesocket(server.handlerInfo[index].clientSocket);
   server.freeSocket.push(index);
@@ -207,9 +234,6 @@ DWORD __stdcall Server::clientHandlerSender(const LPVOID lpvParam)
     result = send(server.handlerInfo[index].clientSocket, (char*)&len, sizeof(size_t), 0);
     if (result == 0)
     {
-      EnterCriticalSection(&server.outputCriticalSection);
-      std::cout << "Client disconnected." << std::endl;
-      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
     else if (result < 0)
@@ -222,9 +246,6 @@ DWORD __stdcall Server::clientHandlerSender(const LPVOID lpvParam)
     result = send(server.handlerInfo[index].clientSocket, (char*)response.c_str(), sizeof(wchar_t) * len, 0);
     if (result == 0)
     {
-      EnterCriticalSection(&server.outputCriticalSection);
-      std::cout << "Client disconnected." << std::endl;
-      LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
     else if (result < 0)
@@ -234,6 +255,18 @@ DWORD __stdcall Server::clientHandlerSender(const LPVOID lpvParam)
       LeaveCriticalSection(&server.outputCriticalSection);
       break;
     }
+
+    EnterCriticalSection(&server.outputCriticalSection);
+    auto temp = std::time(nullptr);
+    char *timestamp = new char[200];
+    tm locTime;
+    localtime_s(&locTime, &temp);
+    asctime_s(timestamp, 200, &locTime);
+    std::wcout << timestamp;
+    std::cout << "Sended response for " <<
+      server.handlerInfo[index].host << " on port " << server.handlerInfo[index].service << std::endl;
+    LeaveCriticalSection(&server.outputCriticalSection);
+    delete[]timestamp;
   }
 
   return 0;

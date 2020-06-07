@@ -78,13 +78,16 @@ DWORD __stdcall Client::responsReceiver(const LPVOID lpvParam)
       WaitForSingleObject(client.commandSended, INFINITE);
     }
 
+    auto command = client.commandQueue.front();
+    client.commandQueue.pop();
+
     size_t responsLen;
     int result;
     result = recv(client.clientSocket, (char*)&responsLen, sizeof(responsLen), 0);
     if (result == 0)
     {
       EnterCriticalSection(&client.outputCriticalSection);
-      std::cout << "Server disonnected." << std::endl;
+      std::wcout << L"Server disonnected." << std::endl;
       LeaveCriticalSection(&client.outputCriticalSection);
       break;
     }
@@ -96,13 +99,14 @@ DWORD __stdcall Client::responsReceiver(const LPVOID lpvParam)
       break;
     }
 
-    wchar_t *command = new wchar_t[responsLen];
-    result = recv(client.clientSocket, (char*)command, responsLen * sizeof(wchar_t), 0);
+    wchar_t *response = new wchar_t[responsLen];
+    result = recv(client.clientSocket, (char*)response, responsLen * sizeof(wchar_t), 0);
     if (result == 0)
     {
       EnterCriticalSection(&client.outputCriticalSection);
-      std::cout << "Client disonnected." << std::endl;
+      std::wcout << L"Server disonnected." << std::endl;
       LeaveCriticalSection(&client.outputCriticalSection);
+      delete[]response;
       break;
     }
     else if (result < 0)
@@ -110,20 +114,28 @@ DWORD __stdcall Client::responsReceiver(const LPVOID lpvParam)
       EnterCriticalSection(&client.outputCriticalSection);
       std::cerr << "recv() failed with error: " << WSAGetLastError() << std::endl;
       LeaveCriticalSection(&client.outputCriticalSection);
+      delete[]response;
       break;
     }
 
     EnterCriticalSection(&client.outputCriticalSection);
-    std::wcout << command << std::endl;
+    auto temp = std::time(nullptr);
+    char *timestamp = new char[200];
+    tm locTime;
+    localtime_s(&locTime, &temp);
+    asctime_s(timestamp, 200, &locTime);
+    std::wcout << timestamp;
+    std::wcout << command << L"\t->\t" << response << std::endl;
     LeaveCriticalSection(&client.outputCriticalSection);
-    delete[]command;
+    delete[]response;
+    delete[]timestamp;
   }
   SetEvent(client.receiverTerminated);
 
   return 0;
 }
 
-Client::Client() : commands(), commandQueue()
+Client::Client(size_t requestNumber) : commands(), commandQueue()
 {
   InitializeCriticalSection(&outputCriticalSection);
   readData();
@@ -147,7 +159,8 @@ Client::Client() : commands(), commandQueue()
     system("pause");
     exit(0);
   }
-
+  
+  runClient(requestNumber);
 }
 
 Client::~Client()
@@ -174,7 +187,7 @@ void Client::runClient(size_t requestNumber)
     if (result == 0)
     {
       EnterCriticalSection(&outputCriticalSection);
-      std::cout << "Server disconnected." << std::endl;
+      std::wcout << L"Server disconnected." << std::endl;
       LeaveCriticalSection(&outputCriticalSection);
       break;
     }
@@ -190,7 +203,7 @@ void Client::runClient(size_t requestNumber)
     if (result == 0)
     {
       EnterCriticalSection(&outputCriticalSection);
-      std::cout << "Server disconnected." << std::endl;
+      std::wcout << L"Server disconnected." << std::endl;
       LeaveCriticalSection(&outputCriticalSection);
       break;
     }
