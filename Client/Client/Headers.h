@@ -11,5 +11,9 @@
 #include <vector>
 #include <ws2tcpip.h>
 #include <ctime>
+#include <fcntl.h>
+#include <io.h>
+#include <stdio.h>
+
 
 #pragma comment (lib, "Ws2_32.lib")

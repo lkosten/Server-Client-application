@@ -87,7 +87,7 @@ DWORD __stdcall Client::responsReceiver(const LPVOID lpvParam)
     if (result == 0)
     {
       EnterCriticalSection(&client.outputCriticalSection);
-      std::cout << "Server disonnected." << std::endl;
+      std::wcout << L"Server disonnected." << std::endl;
       LeaveCriticalSection(&client.outputCriticalSection);
       break;
     }
@@ -104,7 +104,7 @@ DWORD __stdcall Client::responsReceiver(const LPVOID lpvParam)
     if (result == 0)
     {
       EnterCriticalSection(&client.outputCriticalSection);
-      std::cout << "Client disonnected." << std::endl;
+      std::wcout << L"Server disonnected." << std::endl;
       LeaveCriticalSection(&client.outputCriticalSection);
       delete[]response;
       break;
@@ -124,7 +124,7 @@ DWORD __stdcall Client::responsReceiver(const LPVOID lpvParam)
     tm locTime;
     localtime_s(&locTime, &temp);
     asctime_s(timestamp, 200, &locTime);
-    std::cout << timestamp;
+    std::wcout << timestamp;
     std::wcout << command << L"\t->\t" << response << std::endl;
     LeaveCriticalSection(&client.outputCriticalSection);
     delete[]response;
@@ -187,7 +187,7 @@ void Client::runClient(size_t requestNumber)
     if (result == 0)
     {
       EnterCriticalSection(&outputCriticalSection);
-      std::cout << "Server disconnected." << std::endl;
+      std::wcout << L"Server disconnected." << std::endl;
       LeaveCriticalSection(&outputCriticalSection);
       break;
     }
@@ -203,7 +203,7 @@ void Client::runClient(size_t requestNumber)
     if (result == 0)
     {
       EnterCriticalSection(&outputCriticalSection);
-      std::cout << "Server disconnected." << std::endl;
+      std::wcout << L"Server disconnected." << std::endl;
       LeaveCriticalSection(&outputCriticalSection);
       break;
     }
