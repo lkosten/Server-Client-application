@@ -100,6 +100,22 @@ DWORD __stdcall Server::listeningSocket(const LPVOID lpvParam)
       continue;
     }
 
+    ZeroMemory(server.handlerInfo[index].host, NI_MAXHOST);
+    ZeroMemory(server.handlerInfo[index].service, NI_MAXSERV);
+    if (getnameinfo((sockaddr*)&client, sizeof(client),
+      server.handlerInfo[index].host, NI_MAXHOST, server.handlerInfo[index].service, NI_MAXSERV, 0) == 0)
+    {
+      EnterCriticalSection(&server.outputCriticalSection);
+      std::cout << server.handlerInfo[index].host << " connected on port " << server.handlerInfo[index].service << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
+    }
+    else
+    {
+      EnterCriticalSection(&server.outputCriticalSection);
+      std::cerr << "Can't get information from client: " << WSAGetLastError() << std::endl;
+      LeaveCriticalSection(&server.outputCriticalSection);
+    }
+
     auto handlerParam1 = new std::pair<Server*, size_t>(&server, index);
     auto handlerParam2 = new std::pair<Server*, size_t>(&server, index);
     HANDLE clientHandlerReceiverThread = CreateThread(NULL, 0, clientHandlerReceiver, handlerParam1, 0, NULL);

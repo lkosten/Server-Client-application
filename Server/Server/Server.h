@@ -10,6 +10,9 @@ class Server
     HANDLE responsePushed;
     size_t index;
     SOCKET clientSocket;
+
+    char host[NI_MAXHOST];
+    char service[NI_MAXSERV];
   };
   const std::string dataFileName = "commandResponse.xml";
   const size_t maxConnections = 10;
